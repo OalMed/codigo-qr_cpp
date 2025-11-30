@@ -3,6 +3,9 @@
 #include "qrcodegen.hpp" 
 #include <clocale>
 #include <windows.h>  
+#include <fstream>
+#include <limits>
+//#include <filesystem>  
 
 using namespace qrcodegen;
 
@@ -13,13 +16,13 @@ void descargarQRs();
 
 
 std::string texto;
-    std::vector<std::string> textos;
-	std::vector<uint8_t> codigos;
-	std::vector<std::vector<uint8_t>> codsTextos;
-	std::vector<QrCode> QRs;
-    int numQRs, opcion;
-    bool repetir = true;
-    
+std::vector<std::string> textos;
+std::vector<uint8_t> codigos;
+std::vector<std::vector<uint8_t>> codsTextos;
+std::vector<QrCode> QRs;
+int numQRs, opcion;
+bool repetir = true;
+
 
 int main() {
 	setlocale(LC_ALL, "es_ES.UTF-8");
@@ -44,11 +47,13 @@ int main() {
         switch (opcion) {
             case 1:
             	pedirDatos();
+            	if (numQRs == 0) break;
                 imprimirQRs();
                 break;
 
             case 2:
             	pedirDatos();
+            	if (numQRs == 0) break;
                 descargarQRs();
                 break;
 
@@ -88,7 +93,7 @@ void pedirDatos() {
 
     while (std::cin.fail() || numQRs < 0 || numQRs > 10) {
     	std::cin.clear();
-    	std::cin.ignore();
+    	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     	std::cout << "\nIngrese un valor valido: ";
     	std::cin >> numQRs;
 	}
@@ -111,7 +116,7 @@ void pedirDatos() {
 }
 
 void imprimirQRs() {
-    std::cout << "\n\n----- [MODO CONSOLA] Generando QR(s)) -----\n" << std::endl;
+    std::cout << "\n\n----- [MODO CONSOLA] Generando QR(s) -----\n" << std::endl;
     
 	for (int i = 0; i < numQRs; i++){
 		
@@ -137,10 +142,64 @@ void imprimirQRs() {
 
 
 void descargarQRs() {
-    std::cout << "\n\n----- [MODO IMAGEN] Descargando QR -----\n" << std::endl;
+    std::cout << "\n\n----- [MODO IMAGEN] Descargando QR(s) -----\n" << std::endl;
 
-    // Lógica para usar la API
-    // y guardar el archivo .png o .jpg o .svg
+    int margen = 2;    
+    int moduloTamano = 10;   
+    //std::filesystem::create_directories("qr-generados");
+
+    for (int i = 0; i < numQRs; ++i) {
+        const QrCode &qr = QRs[i];
+        int size = qr.getSize(); 
+
+        int dimension = (size + 2 * margen) * moduloTamano;  
+        std::string nombreArch = textos[i];
+
+        // limpiar nombre
+        for(char& c : nombreArch) {
+            if (!isalnum(c) && c != '_' && c != '-') {
+                c = '_';
+            }
+        }
+
+        std::string archivo = "qr_" + nombreArch + ".svg";
+
+        std::ofstream out("qr-generados/" + archivo);
+        if (!out) {
+            std::cerr << "No se pudo crear " << archivo << "\n";
+            continue;  // pasa al siguiente
+        }
+        // lienzo del svg
+        out << "<svg xmlns=\"http://www.w3.org/2000/svg\" "
+            << "width=\"" << dimension << "\" height=\"" << dimension << "\" "
+            << "viewBox=\"0 0 " << dimension << " " << dimension << "\">\n";
+
+        // fondo blanco
+        out << "  <rect x=\"0\" y=\"0\" width=\"" << dimension
+            << "\" height=\"" << dimension << "\" fill=\"white\"/>\n";
+
+        for (int y = 0; y < size; ++y) {
+            for (int x = 0; x < size; ++x) {
+                if (!qr.getModule(x, y)) continue;
+
+                int X = (x + margen) * moduloTamano;
+                int Y = (y + margen) * moduloTamano;
+
+                out << "  <rect x=\"" << X
+                    << "\" y=\"" << Y
+                    << "\" width=\"" << moduloTamano
+                    << "\" height=\"" << moduloTamano
+                    << "\" fill=\"black\"/>\n";
+            }
+        }
+
+        out << "</svg>\n";
+        out.close();
+
+        std::cout << "QR #" << (i + 1) << " guardado como " << archivo << "\n";
+    }
+
+    std::cout << "\n Los QRs han sido generados en formato .svg en la carpeta qr-generados.\n";
     
 }
 
