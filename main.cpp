@@ -153,7 +153,7 @@ void descargarQRs() {
         int size = qr.getSize(); 
 
         int dimension = (size + 2 * margen) * moduloTamano;  
-        std::string nombreArch = textos[i];
+        std::string nombreArch = textos[i].substr(0,30);
 
         // limpiar nombre
         for(char& c : nombreArch) {
